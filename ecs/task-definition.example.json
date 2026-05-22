@@ -1,0 +1,56 @@
+{
+  "family": "td-nangman-dev-recomposition-orchestrator-apn2",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "runtimePlatform": {
+    "cpuArchitecture": "ARM64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "executionRoleArn": "arn:aws:iam::<aws-account-id>:role/role-nangman-dev-recomposition-orchestrator-exec",
+  "taskRoleArn": "arn:aws:iam::<aws-account-id>:role/role-nangman-dev-recomposition-orchestrator-task",
+  "containerDefinitions": [
+    {
+      "name": "recomposition-orchestrator-app",
+      "image": "REPLACE_WITH_ECR_IMAGE_URI",
+      "essential": true,
+      "stopTimeout": 120,
+      "readonlyRootFilesystem": true,
+      "linuxParameters": {
+        "capabilities": {
+          "drop": ["ALL"]
+        }
+      },
+      "command": [
+        "--input-s3-bucket",
+        "nangman-crypto-dev-intel-candidate-<account-suffix>",
+        "--input-s3-prefix",
+        "hypothesis-state/schema=intel_candidate_hypothesis_state_v1/",
+        "--input-s3-region",
+        "ap-northeast-2",
+        "--input-s3-max-keys",
+        "1000",
+        "--changed-trigger",
+        "market_feature_delta_updated",
+        "--output-s3-bucket",
+        "nangman-crypto-dev-research-<account-suffix>",
+        "--output-s3-prefix",
+        "recomposition/",
+        "--output-s3-region",
+        "ap-northeast-2"
+      ],
+      "environment": [
+        { "name": "AWS_REGION", "value": "ap-northeast-2" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/aws/ecs/log-nangman-dev-recomposition-orchestrator-apn2",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ReadHypothesisStatePrefix",
+      "Effect": "Allow",
+      "Action": [
+        "s3:GetObject",
+        "s3:ListBucket"
+      ],
+      "Resource": [
+        "arn:aws:s3:::nangman-crypto-dev-intel-candidate-<account-suffix>",
+        "arn:aws:s3:::nangman-crypto-dev-intel-candidate-<account-suffix>/hypothesis-state/schema=intel_candidate_hypothesis_state_v1/*"
+      ]
+    },
+    {
+      "Sid": "WriteRecompositionOutputs",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject"
+      ],
+      "Resource": [
+        "arn:aws:s3:::nangman-crypto-dev-research-<account-suffix>/recomposition/hypothesis-harness-job/*",
+        "arn:aws:s3:::nangman-crypto-dev-research-<account-suffix>/recomposition/recomposition-orchestrator-report/*"
+      ]
+    }
+  ]
+}
