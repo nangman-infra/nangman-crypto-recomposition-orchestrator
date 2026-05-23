@@ -514,10 +514,12 @@ fn parse_args(mut values: impl Iterator<Item = String>) -> AppResult<Args> {
             }
             "--output-s3-force-path-style" => s3.force_path_style = true,
             "--aws-profile" => {
-                s3.profile = Some(next_string(
+                let profile = Some(next_string(
                     &mut values,
                     "--aws-profile requires a profile",
-                )?)
+                )?);
+                input_s3.profile = profile.clone();
+                s3.profile = profile;
             }
             "--now-ms" => args.now_ms = Some(non_negative_i64(values.next(), "--now-ms")?),
             "-h" | "--help" => return Err(AppError::config(help_text())),
@@ -757,5 +759,37 @@ mod tests {
         first.updated_at_ms = second.updated_at_ms;
         let repeated_job = build_job_if_dirty(&first, &changed, 7_200_000).expect("job selected");
         assert_eq!(second_job.harness_job_id, repeated_job.harness_job_id);
+    }
+
+    #[test]
+    fn aws_profile_applies_to_input_and_output_s3() {
+        let args = parse_args(
+            [
+                "--input-s3-bucket",
+                "candidate-bucket",
+                "--input-s3-prefix",
+                "hypothesis-state/",
+                "--output-s3-bucket",
+                "research-bucket",
+                "--output-s3-prefix",
+                "recomposition/",
+                "--changed-trigger",
+                "market_feature_delta_updated",
+                "--aws-profile",
+                "dev-profile",
+            ]
+            .into_iter()
+            .map(str::to_owned),
+        )
+        .unwrap();
+
+        assert_eq!(
+            args.input_s3.and_then(|s3| s3.profile),
+            Some("dev-profile".to_owned())
+        );
+        assert_eq!(
+            args.output_s3.and_then(|s3| s3.profile),
+            Some("dev-profile".to_owned())
+        );
     }
 }
