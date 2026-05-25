@@ -7,7 +7,7 @@ rust-version = "1.94"
 
 [dependencies]
 chrono = { version = "0.4.42", default-features = false, features = ["clock"] }
-intel-candidate-app = { git = "https://github.com/nangman-infra/nangman-crypto-intel-candidate.git", rev = "d14666b86418360c7bcb89d67e70c55b54903009" }
+intel-candidate-app = { git = "https://github.com/nangman-infra/nangman-crypto-intel-candidate.git", rev = "5033c3ec9e9d885c57c6c47ca02c288d4f177107" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 sha2 = "0.10.9"

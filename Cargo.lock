@@ -1487,7 +1487,7 @@ dependencies = [
 [[package]]
 name = "intel-candidate-app"
 version = "0.1.0"
-source = "git+https://github.com/nangman-infra/nangman-crypto-intel-candidate.git?rev=d14666b86418360c7bcb89d67e70c55b54903009#d14666b86418360c7bcb89d67e70c55b54903009"
+source = "git+https://github.com/nangman-infra/nangman-crypto-intel-candidate.git?rev=5033c3ec9e9d885c57c6c47ca02c288d4f177107#5033c3ec9e9d885c57c6c47ca02c288d4f177107"
 dependencies = [
  "async-nats",
  "aws-config",
