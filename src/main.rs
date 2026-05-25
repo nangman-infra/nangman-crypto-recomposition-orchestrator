@@ -547,7 +547,46 @@ fn parse_args(mut values: impl Iterator<Item = String>) -> AppResult<Args> {
     if !s3.bucket.trim().is_empty() {
         args.output_s3 = Some(s3);
     }
+    validate_s3_runtime_contract(&args)?;
     Ok(args)
+}
+
+fn validate_s3_runtime_contract(args: &Args) -> AppResult<()> {
+    validate_optional_s3_input("--input-s3", args.input_s3.as_ref())?;
+    validate_optional_s3_output("--output-s3", args.output_s3.as_ref())?;
+    Ok(())
+}
+
+fn validate_optional_s3_input(label: &str, s3: Option<&S3InputArgs>) -> AppResult<()> {
+    let Some(s3) = s3 else {
+        return Ok(());
+    };
+    validate_s3_runtime_config(label, s3.endpoint.as_deref(), s3.force_path_style)
+}
+
+fn validate_optional_s3_output(label: &str, s3: Option<&S3OutputArgs>) -> AppResult<()> {
+    let Some(s3) = s3 else {
+        return Ok(());
+    };
+    validate_s3_runtime_config(label, s3.endpoint.as_deref(), s3.force_path_style)
+}
+
+fn validate_s3_runtime_config(
+    label: &str,
+    endpoint: Option<&str>,
+    force_path_style: bool,
+) -> AppResult<()> {
+    if endpoint.is_some_and(|value| !value.trim().is_empty()) {
+        return Err(AppError::config(format!(
+            "{label} custom endpoint is unsupported; use AWS S3 with IAM"
+        )));
+    }
+    if force_path_style {
+        return Err(AppError::config(format!(
+            "{label} path-style endpoint mode is unsupported; use AWS S3 with IAM"
+        )));
+    }
+    Ok(())
 }
 
 fn help_text() -> &'static str {
@@ -791,5 +830,58 @@ mod tests {
             args.output_s3.and_then(|s3| s3.profile),
             Some("dev-profile".to_owned())
         );
+    }
+
+    #[test]
+    fn rejects_custom_s3_endpoint_runtime_config() {
+        let err = parse_args(
+            [
+                "--input-s3-bucket",
+                "candidate-bucket",
+                "--input-s3-prefix",
+                "hypothesis-state/",
+                "--input-s3-endpoint",
+                "https://s3.nangman.cloud",
+                "--output-s3-bucket",
+                "research-bucket",
+                "--output-s3-prefix",
+                "recomposition/",
+                "--changed-trigger",
+                "market_feature_delta_updated",
+            ]
+            .into_iter()
+            .map(str::to_owned),
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(err.contains("custom endpoint is unsupported"));
+        assert!(err.contains("AWS S3 with IAM"));
+    }
+
+    #[test]
+    fn rejects_path_style_s3_runtime_config() {
+        let err = parse_args(
+            [
+                "--input-s3-bucket",
+                "candidate-bucket",
+                "--input-s3-prefix",
+                "hypothesis-state/",
+                "--input-s3-force-path-style",
+                "--output-s3-bucket",
+                "research-bucket",
+                "--output-s3-prefix",
+                "recomposition/",
+                "--changed-trigger",
+                "market_feature_delta_updated",
+            ]
+            .into_iter()
+            .map(str::to_owned),
+        )
+        .unwrap_err()
+        .to_string();
+
+        assert!(err.contains("path-style endpoint mode is unsupported"));
+        assert!(err.contains("AWS S3 with IAM"));
     }
 }
