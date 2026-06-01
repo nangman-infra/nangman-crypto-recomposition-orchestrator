@@ -67,6 +67,46 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL || secrets.SONAR_HOST_URL }}
 
+      - name: Print SonarQube Quality Gate details
+        if: always()
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL || secrets.SONAR_HOST_URL }}
+        run: |
+          set -euo pipefail
+          report_file=".scannerwork/report-task.txt"
+          if [ ! -f "${report_file}" ]; then
+            echo "SonarQube task metadata was not generated."
+            exit 0
+          fi
+
+          server_url="$(sed -n 's/^serverUrl=//p' "${report_file}")"
+          project_key="$(sed -n 's/^projectKey=//p' "${report_file}")"
+          host="${server_url:-${SONAR_HOST_URL:-}}"
+          host="${host%/}"
+          if [ -z "${SONAR_TOKEN:-}" ] || [ -z "${host}" ] || [ -z "${project_key}" ]; then
+            echo "SonarQube credentials or project metadata are not available for gate detail lookup."
+            exit 0
+          fi
+
+          curl --fail --silent --show-error --user "${SONAR_TOKEN}:" \
+            "${host}/api/qualitygates/project_status?projectKey=${project_key}" \
+            | jq -r '
+                "quality_gate_status=\(.projectStatus.status)",
+                (.projectStatus.conditions[]? | "\(.metricKey)=\(.actualValue // "n/a") threshold=\(.errorThreshold // "n/a") comparator=\(.comparator // "n/a") status=\(.status)")
+              '
+
+          curl --fail --silent --show-error --user "${SONAR_TOKEN}:" --get \
+            "${host}/api/issues/search" \
+            --data-urlencode "componentKeys=${project_key}" \
+            --data-urlencode "resolved=false" \
+            --data-urlencode "inNewCodePeriod=true" \
+            --data-urlencode "ps=50" \
+            | jq -r '
+                .issues[]? |
+                "issue rule=\(.rule) severity=\(.severity) type=\(.type) component=\(.component) line=\(.line // "n/a") message=\(.message)"
+              '
+
       - name: SonarQube Quality Gate
         uses: SonarSource/sonarqube-quality-gate-action@v1
         timeout-minutes: 5
