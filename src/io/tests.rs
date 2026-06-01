@@ -2,6 +2,7 @@ use std::path::Path;
 
 use crate::types::OrchestratorReport;
 
+use super::json_payload::{jsonl_bytes, read_json_array_or_jsonl_bytes};
 use super::validation::{safe_prefixed_key, validate_output_key};
 use super::write::write_outputs_to_dir;
 
@@ -135,5 +136,66 @@ fn s3_prefix_preserves_normal_contract() {
         )
         .unwrap(),
         "recomposition/hypothesis-harness-job/schema=hypothesis_harness_job_v1/part-000001.jsonl"
+    );
+}
+
+#[test]
+fn json_payload_reads_array_single_object_and_jsonl_inputs() {
+    let array = br#"[{"value":1},{"value":2}]"#;
+    let object = br#"{"value":3}"#;
+    let jsonl = b"{\"value\":4}\n\n{\"value\":5}\n";
+
+    assert_eq!(
+        read_json_array_or_jsonl_bytes::<serde_json::Value>("array", array).unwrap(),
+        vec![
+            serde_json::json!({"value": 1}),
+            serde_json::json!({"value": 2})
+        ]
+    );
+    assert_eq!(
+        read_json_array_or_jsonl_bytes::<serde_json::Value>("object", object).unwrap(),
+        vec![serde_json::json!({"value": 3})]
+    );
+    assert_eq!(
+        read_json_array_or_jsonl_bytes::<serde_json::Value>("jsonl", jsonl).unwrap(),
+        vec![
+            serde_json::json!({"value": 4}),
+            serde_json::json!({"value": 5})
+        ]
+    );
+}
+
+#[test]
+fn json_payload_reports_empty_utf8_and_line_errors() {
+    let empty_error = read_json_array_or_jsonl_bytes::<serde_json::Value>("empty", b"  ")
+        .unwrap_err()
+        .to_string();
+    assert!(empty_error.contains("must not be empty"));
+
+    let utf8_error = read_json_array_or_jsonl_bytes::<serde_json::Value>("bad-utf8", &[0xff])
+        .unwrap_err()
+        .to_string();
+    assert!(utf8_error.contains("bad-utf8"));
+
+    let line_error = read_json_array_or_jsonl_bytes::<serde_json::Value>(
+        "bad-jsonl",
+        b"{\"value\":1}\nnot-json\n",
+    )
+    .unwrap_err()
+    .to_string();
+    assert!(line_error.contains("bad-jsonl line 2"));
+}
+
+#[test]
+fn jsonl_bytes_writes_one_json_record_per_line() {
+    let bytes = jsonl_bytes(&[
+        serde_json::json!({"value": 1}),
+        serde_json::json!({"value": 2}),
+    ])
+    .unwrap();
+
+    assert_eq!(
+        String::from_utf8(bytes).unwrap(),
+        "{\"value\":1}\n{\"value\":2}\n"
     );
 }

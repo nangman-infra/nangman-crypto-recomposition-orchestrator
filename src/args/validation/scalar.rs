@@ -51,3 +51,64 @@ pub(in crate::args) fn positive_usize(value: Option<String>, name: &str) -> AppR
     }
     Ok(parsed)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn non_negative_i64_accepts_zero_and_positive_values() {
+        assert_eq!(
+            non_negative_i64(Some("0".to_owned()), "--now-ms").unwrap(),
+            0
+        );
+        assert_eq!(
+            non_negative_i64(Some("7200000".to_owned()), "--now-ms").unwrap(),
+            7_200_000
+        );
+    }
+
+    #[test]
+    fn non_negative_i64_rejects_missing_invalid_and_negative_values() {
+        for (value, expected) in [
+            (None, "requires a number"),
+            (Some("abc".to_owned()), "must be an integer"),
+            (Some("-1".to_owned()), "must be non-negative"),
+        ] {
+            let error = non_negative_i64(value, "--now-ms").unwrap_err().to_string();
+            assert!(
+                error.contains(expected),
+                "expected {expected:?}, got {error:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn positive_usize_accepts_positive_values() {
+        assert_eq!(
+            positive_usize(Some("1".to_owned()), "--input-s3-max-keys").unwrap(),
+            1
+        );
+        assert_eq!(
+            positive_usize(Some("1000".to_owned()), "--input-s3-max-keys").unwrap(),
+            1000
+        );
+    }
+
+    #[test]
+    fn positive_usize_rejects_missing_invalid_and_zero_values() {
+        for (value, expected) in [
+            (None, "requires a number"),
+            (Some("abc".to_owned()), "must be a positive integer"),
+            (Some("0".to_owned()), "must be greater than zero"),
+        ] {
+            let error = positive_usize(value, "--input-s3-max-keys")
+                .unwrap_err()
+                .to_string();
+            assert!(
+                error.contains(expected),
+                "expected {expected:?}, got {error:?}"
+            );
+        }
+    }
+}
