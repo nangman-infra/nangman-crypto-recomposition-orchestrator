@@ -10,6 +10,7 @@ const DEFAULT_AWS_REGION: &str = "ap-northeast-2";
 mod args;
 mod ids;
 mod io;
+mod path_validation;
 mod planning;
 #[cfg(test)]
 mod tests;

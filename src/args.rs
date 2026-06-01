@@ -1,4 +1,5 @@
 mod event;
+mod help;
 mod parse;
 mod payload;
 mod validation;

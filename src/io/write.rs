@@ -1,3 +1,4 @@
+use crate::path_validation::validate_unambiguous_absolute_path;
 use crate::types::{HarnessJob, OrchestratorReport, S3OutputArgs};
 use intel_candidate_app::error::{AppError, AppResult};
 use intel_candidate_app::storage::{ObjectStore, ObjectStoreConfig};
@@ -79,19 +80,24 @@ fn write_json<T: Serialize>(output_dir: &Path, key: &str, record: &T) -> AppResu
 }
 
 fn write_bytes(output_dir: &Path, key: &str, bytes: &[u8]) -> AppResult<String> {
-    if !output_dir.is_absolute() {
-        return Err(AppError::validation(format!(
-            "output dir must be an absolute path: {}",
-            output_dir.display()
-        )));
-    }
+    validate_unambiguous_absolute_path(output_dir, "output dir").map_err(AppError::validation)?;
     validate_output_key(key)?;
     let path = output_dir.join(key);
     let parent = path.parent().ok_or_else(|| {
         AppError::validation(format!("output path has no parent: {}", path.display()))
     })?;
     fs::create_dir_all(parent)?;
-    let mut file = File::create(&path)?;
+    let mut file = create_output_file(&path)?;
     file.write_all(bytes)?;
     Ok(path.display().to_string())
+}
+
+fn create_output_file(path: &Path) -> AppResult<File> {
+    if fs::symlink_metadata(path).is_ok_and(|metadata| metadata.file_type().is_symlink()) {
+        return Err(AppError::validation(format!(
+            "output path must not be a symlink: {}",
+            path.display()
+        )));
+    }
+    Ok(File::create(path)?)
 }

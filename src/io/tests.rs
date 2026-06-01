@@ -51,6 +51,56 @@ fn local_output_requires_absolute_output_dir() {
 }
 
 #[test]
+fn local_output_rejects_ambiguous_absolute_output_dir() {
+    let error = write_outputs_to_dir(
+        Path::new("/tmp/../recomposition-output"),
+        7_200_000,
+        &[],
+        &report("recomp_report_001"),
+    )
+    .unwrap_err()
+    .to_string();
+
+    assert!(error.contains("relative path components"));
+}
+
+#[cfg(unix)]
+#[test]
+fn local_output_rejects_symlink_destination() {
+    use std::fs;
+    use std::os::unix::fs::symlink;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let output_dir = std::env::temp_dir().join(format!(
+        "recomposition-output-symlink-test-{}-{nanos}",
+        std::process::id()
+    ));
+    fs::create_dir_all(&output_dir).expect("create temp output dir");
+    let target_path = output_dir.join("outside-target.json");
+    fs::write(&target_path, "do-not-overwrite").expect("write symlink target");
+    let report_path = output_dir
+        .join("recomposition-orchestrator-report/schema=recomposition_orchestrator_report_v1/dt=1970-01-01/hour=02/orchestrator_report_id=recomp_report_001/report.json");
+    fs::create_dir_all(report_path.parent().expect("report path parent exists"))
+        .expect("create report parent");
+    symlink(&target_path, &report_path).expect("create report output symlink");
+
+    let error = write_outputs_to_dir(&output_dir, 7_200_000, &[], &report("recomp_report_001"))
+        .expect_err("symlink output destination must be rejected")
+        .to_string();
+
+    assert!(error.contains("symlink"));
+    assert_eq!(
+        fs::read_to_string(&target_path).expect("read symlink target"),
+        "do-not-overwrite"
+    );
+    fs::remove_dir_all(&output_dir).ok();
+}
+
+#[test]
 fn output_key_validation_rejects_escape_shapes() {
     for key in [
         "/tmp/out.json",
